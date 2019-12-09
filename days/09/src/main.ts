@@ -24,7 +24,7 @@ async function part01() {
     const input = await fetch('./input.txt');
     const data = await input.text();
     const instructions = data.split(',').map(value => parseInt(value, 10));
-    runComputer(instructions, 1);
+    runComputer(instructions, 2);
     console.log('done')
 }
 
@@ -35,7 +35,7 @@ function runComputer(codes, input: any) {
     };
 
     const handleInput = () => {
-        console.log('handle input', input);
+        // console.log('handle input', input);
         return input;
     };
 
@@ -155,7 +155,8 @@ function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelat
             //calc
             // const result = BigInt(paramA) + BigInt(paramB);
             const result = (paramA) + (paramB);
-            writeState(paramC, result, POSITION_MODE);
+            const writeAddress =  modes[2] || POSITION_MODE;
+            writeState(paramC, result, writeAddress);
 
             return [false, cursor + 4];
         }
@@ -166,12 +167,14 @@ function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelat
             //output is always position mode
 
             const paramC = getValue(c, IMMEDIATE_MODE);
-            console.log({c,  modes})
+            // console.log({c,  modes})
 
             //calc
             // const result = BigInt(paramA) * BigInt(paramB);
             const result = (paramA) * (paramB);
-            writeState(paramC, result, POSITION_MODE);
+
+            const writeAddress =  modes[2] || POSITION_MODE;
+            writeState(paramC, result, writeAddress);
 
             return [false, cursor + 4];
         }
@@ -224,10 +227,12 @@ function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelat
             //output
             const paramC = getValue(c, IMMEDIATE_MODE);
 
+            const writeAddress =  modes[2] || POSITION_MODE;
+
             if(paramA < paramB){
-                writeState(paramC, 1, POSITION_MODE);
+                writeState(paramC, 1, writeAddress);
             }else{
-                writeState(paramC, 0, POSITION_MODE);
+                writeState(paramC, 0, writeAddress);
             }
 
             return [false, cursor + PARAMS_COUNT];
@@ -241,10 +246,12 @@ function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelat
             //output
             const paramC = getValue(c, IMMEDIATE_MODE);
 
+            const writeAddress =  modes[2] || POSITION_MODE;
+
             if(paramA === paramB){
-                writeState(paramC, 1, POSITION_MODE);
+                writeState(paramC, 1, writeAddress);
             }else{
-                writeState(paramC, 0, POSITION_MODE);
+                writeState(paramC, 0, writeAddress);
             }
 
             return [false, cursor + PARAMS_COUNT];
