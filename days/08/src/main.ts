@@ -58,7 +58,7 @@ async function part02() {
 
 function drawLayer(pixelData, layerData) {
     for (let i = 0; i < pixelData.length; i += 4) {
-        const spaceColor = layerData[i/4];
+        const spaceColor = layerData[i/4];w
         const currentColor  = getColor(i, pixelData);
         const newColor  = spaceColorToRGB(spaceColor);
 
