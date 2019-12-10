@@ -1069,6 +1069,11 @@ braces@^2.3.1, braces@^2.3.2:
     split-string "^3.0.2"
     to-regex "^3.0.1"
 
+bresenham-line@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/bresenham-line/-/bresenham-line-2.0.0.tgz#0e68107f7a604bce576d5a5a0db6fae7a1071ad7"
+  integrity sha1-DmgQf3pgS85XbVpaDbb656EHGtc=
+
 brfs@^1.2.0:
   version "1.6.1"
   resolved "https://registry.yarnpkg.com/brfs/-/brfs-1.6.1.tgz#b78ce2336d818e25eea04a0947cba6d4fb8849c3"
