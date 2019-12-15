@@ -42,9 +42,28 @@ async function part01() {
         oxygenFound = await runComputer(instructions, robot);
     }
 
-    console.log('oxygen found, done', robot.position);
+    console.log('oxygen found, done', robot.position, robot.map);
+    const goal = robot.map.get(positionToIndex(robot.position));
+    retrievePath(goal);
+
+}
+function retrievePath(goal) {
+    let item = goal;
+    let steps = 0;
+    while(item && item.from)  {
+        item.from.sort((a,b) => a.visited -  b.visited);
+        item = item.from[0];
+        console.log(item);
+        steps++;
+    }
+    console.log('end  at', item, steps);
+    return steps;
 }
 
+function positionToIndex(pos){
+    const [x,y] = pos;
+    return y * MAX_WIDTH + x;
+}
 function createRobot() {
     const processed: Map<Number, any> = new Map();
 
@@ -160,20 +179,18 @@ function createRobot() {
 
             counter--;
             const nextDirection = nextCandidate();
-
-            setTimeout(() => {
-                resolve(nextDirection);
-            }, 1)
+            resolve(nextDirection);
+            
+            // requestAnimationFrame(() =>  resolve(nextDirection));
+            // setTimeout(() => {
+            //     resolve(nextDirection)
+            // }, 0)
         })
 
     }
     const WALL = 0;
     const FOUND_OXYGEN = 2;
 
-    function positionToIndex(pos){
-        const [x,y] = pos;
-        return y * MAX_WIDTH + x;
-    }
 
     function saveWall() {
         drawWall(candidateDirection.position);
@@ -192,6 +209,7 @@ function createRobot() {
     }
 
     function advancePosition() {
+
         drawWaypoint(candidateDirection.position);
 
         const index = positionToIndex(candidateDirection.position);
@@ -199,10 +217,18 @@ function createRobot() {
         if(processed.has(index)) {
             const entry = processed.get(index);
             entry.visited++;
+            entry.from.push(processed.get(positionToIndex(currentPosition)));
         }else {
+            let from = null as any;
+
+            if(currentPosition) {
+                from =  [processed.get(positionToIndex(currentPosition))]
+            }
             processed.set(index, {
                 type: 'waypoint',
-                visited: 1
+                visited: 1,
+                from: from,
+                position: [...candidateDirection.position]
             });
         }
 
@@ -237,6 +263,9 @@ function createRobot() {
         start,
         get position() {
             return currentPosition;
+        },
+        get map() {
+            return processed;
         }
     }
 }
