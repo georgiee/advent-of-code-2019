@@ -18,8 +18,8 @@ const POSITION_MODE = 0;
 const IMMEDIATE_MODE = 1;
 const RELATIVE_MODE = 2;
 
-const WIDTH = 100;
-const HEIGHT = 100;
+const WIDTH = 42;
+const HEIGHT = 42;
 
 
 const MOVE_NORTH = 1;
@@ -36,24 +36,78 @@ async function part01() {
     const instructions = data.split(',').map(value => parseInt(value, 10));
     const robot = createRobot();
 
-    let maxRuns = 2;
-    let oxygenFound  = false;
-    while(!oxygenFound) {
-        oxygenFound = await runComputer(instructions, robot);
+    let status;
+
+    // while(status !== 'oxygenFound') {
+    //     status = await runComputer(instructions, robot);
+    // }
+    // console.log('oxygen found, done', robot.position, robot.map);
+    // const goal = robot.map.get(positionToIndex(robot.position));
+
+    // return 12,12 for ozygen chamber
+    // retrievePath(goal);
+
+    while(status !== 'mapComplete') {
+        status = await runComputer(instructions, robot);
+    }
+    console.log('map completed');
+
+    const mapItems =  Array.from(robot.map.values()).map(entry => {
+        return {
+            type: entry.type,
+            position: [...entry.position]
+        }
+    });
+
+    // const xVal = mapItems.map(value => value.position[0];
+    // const yVal = mapItems.map(value => value.position[1];
+    //
+    // const dimensions = {
+    //     minX: Math.min(...xVal),
+    //     maxX: Math.max(...xVal),
+    //     minY: Math.min(...yVal),
+    //     maxY: Math.max(...yVal)
+    // };
+
+    floodOxygen(robot.map, mapItems, [12,12]);
+}
+function floodOxygen(originalMap, items, oxygenPoint) {
+    console.log({items, oxygenPoint});
+    let currentPosition = [...oxygenPoint];
+    const waypoints = items.filter(({position}) => {
+        const index = positionToIndex(position);
+        const item = originalMap.get(index);
+        return item.type !== 'wall';
+    }).map(({position}) => position);
+
+    const neighbours = [MOVE_NORTH,MOVE_EAST,MOVE_SOUTH,MOVE_WEST].map(
+        direction => getPosition(direction, currentPosition)
+    );
+
+    function equal(a, b) {
+        return a[0] == b[0] && a[1] == b[1];
     }
 
-    console.log('oxygen found, done', robot.position, robot.map);
-    const goal = robot.map.get(positionToIndex(robot.position));
-    retrievePath(goal);
+    // TODO: process like djikstra/A*, keep open candidates and remove visited nodes
+
+    // let counter = 0;
+    // for(let neighbour of neighbours) {
+    //     let index = waypoints.findIndex(item => equal(item, neighbour));
+    //     if(index > -1) {
+    //         waypoints.splice(index, 1);
+    //     }
+    // }
+    // counter++;
+    // console.log(counter, waypoints.length)
 
 }
+
 function retrievePath(goal) {
     let item = goal;
     let steps = 0;
-    while(item && item.from)  {
+    while(item && item.from && item.from.length > 0)  {
         item.from.sort((a,b) => a.visited -  b.visited);
         item = item.from[0];
-        console.log(item);
         steps++;
     }
     console.log('end  at', item, steps);
@@ -64,6 +118,24 @@ function positionToIndex(pos){
     const [x,y] = pos;
     return y * MAX_WIDTH + x;
 }
+
+function getDirection(direction) {
+    switch(direction) {
+        case MOVE_NORTH: return [0,-1];
+        case MOVE_SOUTH: return [0,1];
+        case MOVE_EAST: return [1,0];
+        case MOVE_WEST: return [-1,0];
+    }
+}
+function getPosition(dir, base) {
+    const direction = getDirection(dir)!;
+    const newPosition = [
+        base[0] + direction[0],
+        base[1] + direction[1]
+    ];
+    return newPosition;
+}
+
 function createRobot() {
     const processed: Map<Number, any> = new Map();
 
@@ -76,6 +148,7 @@ function createRobot() {
     let candidateDirection = {direction:0, position:[0,0]};
     let currentCandidates = [] as any;
     drawRobot(currentPosition);
+    advancePosition();
 
     function drawWall(pos) {
         ctx.translate(DRAW_OFFSET[0], DRAW_OFFSET[1]);
@@ -116,17 +189,8 @@ function createRobot() {
         console.log('end run')
     }
 
-    function getDirection(direction) {
-        switch(direction) {
-            case MOVE_NORTH: return [0,-1];
-            case MOVE_SOUTH: return [0,1];
-            case MOVE_EAST: return [1,0];
-            case MOVE_WEST: return [-1,0];
-        }
-    }
-
     function getCandidates(){
-        const items = [MOVE_NORTH,MOVE_EAST,MOVE_SOUTH,MOVE_WEST]
+        const neighbours = [MOVE_NORTH,MOVE_EAST,MOVE_SOUTH,MOVE_WEST]
             .map(dir => {
                 const entry = processed.get(positionToIndex(getPosition(dir, currentPosition)));
                 return {
@@ -138,9 +202,18 @@ function createRobot() {
             })
             .filter(item => {
                 return item.type !== 'wall';
+            })
+            .filter(item => {
+                const [x, y] = item.position;
+                // //never reach oxygen to scan all positions
+                if (x == 12 &&  y == 12) {
+                    return false;
+                }
+
+                return true;
             });
 
-        const newItems = [...items];
+        const newItems = [...neighbours];
         // move visited to the end of the queue (start of array as we pop)
         newItems.sort((a,b) => {
             return b.visited - a.visited;
@@ -160,28 +233,15 @@ function createRobot() {
         currentCandidates = getCandidates();
     }
 
-    function getPosition(dir, base) {
-        const direction = getDirection(dir)!;
-        const newPosition = [
-            base[0] + direction[0],
-            base[1] + direction[1]
-        ];
-        return newPosition;
-    }
 
-    let counter = 1000;
     async function nextProbe() {
 
         return new Promise(resolve => {
-            if(counter <= 0) {
-                return;
-            }
-
-            counter--;
             const nextDirection = nextCandidate();
-            resolve(nextDirection);
-            
+            // resolve(nextDirection);
+
             // requestAnimationFrame(() =>  resolve(nextDirection));
+            resolve(nextDirection)
             // setTimeout(() => {
             //     resolve(nextDirection)
             // }, 0)
@@ -202,7 +262,9 @@ function createRobot() {
         }else {
             processed.set(index, {
                 type: 'wall',
-                visited: 1
+                visited: 1,
+                from: [],
+                position: [...candidateDirection.position]
             });
         }
 
@@ -221,7 +283,9 @@ function createRobot() {
         }else {
             let from = null as any;
 
-            if(currentPosition) {
+            if(currentPosition[0] == 0 && currentPosition[1] ==0) {
+                from =  []
+            }else{
                 from =  [processed.get(positionToIndex(currentPosition))]
             }
             processed.set(index, {
@@ -238,11 +302,13 @@ function createRobot() {
     }
 
     function processStatus(status) {
+
         if(status === WALL) {
             saveWall();
         } else {
             advancePosition();
         }
+
         if(currentCandidates.length === 0) {
             return 'empty'
         }
@@ -251,6 +317,12 @@ function createRobot() {
             advancePosition();
             drawOxygen(currentPosition);
             return 'complete'
+        }
+        const MAX_FIELDS = 1657; //by observation of processed map size
+        const total = Array.from(processed.entries()).length;
+
+        if(total >= 1657) {
+            return 'mapComplete'
         }
 
         return false;
@@ -296,14 +368,18 @@ function runComputer(codes, robot) {
     robot.start();
 
     let running = true;
-    let oxygenFound = false;
+    let outputStatus = null as any;
+
     function handleOutput(status) {
         let result = robot.processStatus(status);
         if(result==='empty') {
             running = false;
         }else if(result==='complete') {
             running = false;
-            oxygenFound = true;
+            outputStatus = 'oxygenFound';
+        }else if(result ==='mapComplete') {
+            running = false;
+            outputStatus = 'mapComplete';
         }
     }
 
@@ -318,7 +394,7 @@ function runComputer(codes, robot) {
         }
 
         robot.end();
-        return oxygenFound;
+        return outputStatus;
     }
 
     return run();
