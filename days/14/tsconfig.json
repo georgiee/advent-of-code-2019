@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "strict": true,
+    "baseUrl": ".",
+    "lib": ["dom", "es2016"],
+    "outDir": "ts-out/",
+    "resolveJsonModule": true,
+    "noImplicitAny": false,
+    "declaration": true,
+    "declarationDir": "ts-out/types"
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "**/__tests__/*"]
+}
