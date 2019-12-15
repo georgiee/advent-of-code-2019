@@ -34,6 +34,7 @@ const TILE_H_PADDLE = 3;
 const TILE_BALL = 4;
 
 function createGame() {
+    const tiles = new Set();
     const WIDTH = 45;
     const HEIGHT = 45;
     const ZOOM = 10;
@@ -49,13 +50,10 @@ function createGame() {
     const ctx = canvasElement.getContext('2d')!;
     ctx.fillStyle  = '#ffffff';
     ctx.fillRect( 0, 0, 1000, 1000 );
+    let lastPaddlePos = [-1,-1];
+    let lastBallPos = [-1,-1];
+    let lastBallPositions = [];
 
-    let boundaries = {
-        x: 0,
-        y: 0,
-        width:  0,
-        height: 0
-    };
     let count = 0;
     let score = 0;
     function drawTile(tile, x, y) {
@@ -69,6 +67,7 @@ function createGame() {
                 break;
 
             case TILE_BLOCK:
+                tiles.add(y * WIDTH + x);
                 ctx.fillStyle ="#ffe600";
                 ctx.fillRect( x, y, 1, 1 );
                 count++;
@@ -76,13 +75,20 @@ function createGame() {
 
             case TILE_H_PADDLE:
                 ctx.fillStyle ="#00ff00";
+                ctx.clearRect( lastPaddlePos[0], lastPaddlePos[1], 1, 1 );
                 ctx.fillRect( x, y, 1, 1 );
+                lastPaddlePos = [x,y];
+                // console.log('tile');
+                // debugger;
                 break;
 
 
-            case TILE_H_PADDLE:
+            case TILE_BALL:
+                ctx.clearRect( lastBallPos[0], lastBallPos[1], 1, 1 );
                 ctx.fillStyle ="#ff0099";
                 ctx.fillRect( x, y, 1, 1 );
+                lastBallPos = [x,y];
+                lastBallPositions.push([x,y]);
                 break;
 
 
@@ -90,14 +96,21 @@ function createGame() {
     }
 
     function draw(x, y, tile) {
-        boundaries.width = Math.max(x, boundaries.width);
-        boundaries.height = Math.max(x, boundaries.height);
         drawTile(tile, x, y);
     }
 
     function drawDisplay(value){
-        console.log('score', score);
+        console.log('score', score, lastBallPos);
+        // score which means the ball touched a block
+        // but we don't know in which direction.
+        // console.log(lastBallPositions)
+        // debugger;
+        // ctx.clearRect( lastBallPos[0], lastBallPos[1] -  1, 1, 1 );
+
         score = value;
+    }
+    function clear()  {
+        ctx.clearRect(0,0,WIDTH,HEIGHT );
     }
 
     const process = (x, y, payload) => {
@@ -115,13 +128,15 @@ function createGame() {
     }
 
     function joystickOutput() {
-        return 1;
+        const dx = lastBallPos[0] - lastPaddlePos[0];
+        return dx;
     }
 
     return  {
         process,
         joystickOutput,
-        gameOver
+        gameOver,
+        clear
     }
 }
 
@@ -143,24 +158,27 @@ function runComputer(codes) {
         }
     };
     const computer = createComputer(codes, input, handleOutput);
-    let waitForInput = false;
 
     function input() {
-        console.log('input');
-        waitForInput = true;
-        return game.joystickOutput();
+        return new Promise((ok, bad) => {
+            requestAnimationFrame(() => {
+                ok(game.joystickOutput());
+            });
+        })
     }
 
-    function run() {
-        const stopped = computer.isStopped();
-        // TODO: Interrupt Logic
-        while(!stopped && !waitForInput) {
-            computer.step();
+    async function run() {
+        while(!computer.isStopped()) {
+            const result = await computer.step();
         }
 
         game.gameOver();
     }
-    run();
+
+    const promise = run();
+    promise.then(() => {
+        console.log('---end');
+    })
 }
 
 function createComputer(codes, getInputFn, outputFn) {
@@ -173,9 +191,9 @@ function createComputer(codes, getInputFn, outputFn) {
         return relativeBase += (value);
     };
 
-    function step() {
+    async function step() {
         const opcode = state[cursor];
-        let [stop, newCursor] = processOpcode(opcode, cursor, state,
+        let [stop, newCursor,  debugData] = await processOpcode(opcode, cursor, state,
             {
                 relativeBase
             },
@@ -190,6 +208,8 @@ function createComputer(codes, getInputFn, outputFn) {
         }else {
             cursor = (newCursor);
         }
+
+        return debugData;
     }
 
     return {
@@ -246,7 +266,7 @@ function writeValueAddress(state, address, value, relativeBase, mode = POSITION_
 }
 
 let temp = 0;
-function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelativeBase, inputFn, outputFn}) {
+async function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelativeBase, inputFn, outputFn}) {
     const [opcode, modes] = parseOpCode(opcodeValue);
     // console.log({opcode,  modes});
     // curry getValue with locally constant values like state and relativeBase etcs
@@ -297,11 +317,10 @@ function processOpcode(opcodeValue, cursor, state, {relativeBase},  {changeRelat
         }
         case OPP_INPUT: {
             const [_,  address] = state.slice(cursor, cursor + 2);
-            const input = inputFn();
-
+            const input = await inputFn();
             writeState(address, input, modes[0]);
 
-            return [false, cursor + 2];
+            return [false, cursor + 2,  'input-op'];
         }
         case OPP_OUTPUT: {
             const [_,  paramA] = state.slice(cursor, cursor + 2);
