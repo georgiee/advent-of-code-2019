@@ -28,6 +28,7 @@ const MOVE_WEST = 3;
 const MOVE_EAST = 4;
 const MAX_WIDTH = 1000;
 
+const FAST_DRAW = false;
 async function part01() {
     console.log('part01');
 
@@ -69,20 +70,52 @@ async function part01() {
     //     maxY: Math.max(...yVal)
     // };
 
-    floodOxygen(robot.map, mapItems, [12,12]);
+    floodOxygen(robot.map, mapItems, [12,12], robot);
 }
-function floodOxygen(originalMap, items, oxygenPoint) {
-    console.log({items, oxygenPoint});
-    let currentPosition = [...oxygenPoint];
+function floodOxygen(originalMap, items, oxygenPoint, robot) {
     const waypoints = items.filter(({position}) => {
         const index = positionToIndex(position);
         const item = originalMap.get(index);
         return item.type !== 'wall';
-    }).map(({position}) => position);
+    }).map(({position}) => {
+        return {
+            position, visited: false
+        }
+    });
 
-    const neighbours = [MOVE_NORTH,MOVE_EAST,MOVE_SOUTH,MOVE_WEST].map(
-        direction => getPosition(direction, currentPosition)
-    );
+    const oxygenItem = {
+        position: [...oxygenPoint],
+        visited: true
+    };
+
+    waypoints.push(oxygenItem);
+    const findNeighbours = (point, list) => {
+        const positions = [MOVE_NORTH,MOVE_EAST,MOVE_SOUTH,MOVE_WEST].map(
+            direction => getPosition(direction, point)
+        );
+
+
+        return list.filter(item =>
+            positions.find(pos => equal(pos, item.position))
+        )
+    };
+
+    function visit(points, start, depth) {
+        console.log('depth', depth)
+        start.visited = true;
+        robot.draw(start.position);
+
+        const neighbours = findNeighbours(start.position,  points);
+        const availableItems = neighbours.filter(item => !item.visited);
+        for(const item of availableItems) {
+            setTimeout(() => {
+                visit(points, item, depth + 1);
+            },50)
+        }
+    }
+    visit(waypoints, oxygenItem, 0);
+    //328 depth
+    //799 visits
 
     function equal(a, b) {
         return a[0] == b[0] && a[1] == b[1];
@@ -177,6 +210,12 @@ function createRobot() {
         ctx.fillRect( pos[0], pos[1], 1, 1 );
         ctx.resetTransform();
     }
+    function drawDot(pos) {
+        ctx.translate(DRAW_OFFSET[0], DRAW_OFFSET[1]);
+        ctx.fillStyle ="#ffd700";
+        ctx.fillRect( pos[0], pos[1], 1, 1 );
+        ctx.resetTransform();
+    }
 
     function start(){
         console.log('start run')
@@ -241,10 +280,20 @@ function createRobot() {
             // resolve(nextDirection);
 
             // requestAnimationFrame(() =>  resolve(nextDirection));
-            resolve(nextDirection)
-            // setTimeout(() => {
-            //     resolve(nextDirection)
-            // }, 0)
+
+            // fastest, non-drawing
+            if(FAST_DRAW) {
+                resolve(nextDirection)
+            }else{
+                setTimeout(() => {
+                    resolve(nextDirection)
+                }, 0)
+            }
+
+            //
+
+            //show drawing
+
         })
 
     }
@@ -333,6 +382,7 @@ function createRobot() {
         nextProbe,
         end,
         start,
+        draw: drawDot,
         get position() {
             return currentPosition;
         },
