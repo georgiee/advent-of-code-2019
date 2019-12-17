@@ -38,12 +38,11 @@ async function part01() {
     const camera = createAsciiCamera();
 
     await runComputer(instructions, camera);
-    console.log('part 1', camera.alignmentSum());
+    // console.log('part 1', camera.alignmentSum());
 
     // wake up robot for part 2
-    // instructions[0] = 2;
-    // await runComputer(instructions, camera);
-    // console.log('part 1', camera.alignmentSum());
+    instructions[0] = 2;
+    await runComputer(instructions, camera);
 }
 
 function createAsciiCamera() {
@@ -171,6 +170,7 @@ function runComputer(codes, asciiCamera) {
 
     async function input() {
         console.log('input');
+        throw new Error('handle input, part 2 is missing');
 
         return null;
     }
